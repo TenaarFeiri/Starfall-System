@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+    <book id="1">
+        <title>The Little Fennec That Could</title>
+        <page id="1">
+            <text>
+                Once upon a time, there was a fennec fox. This fennec fox lived happily in the desert alongside his many other fennec foxes.<br />
+                One day, a wild and ferocious jackal barged into his den and howled.
+            </text>
+        </page>
+        <page id="2">
+            <text>Starfall Test text page 2</text>
+        </page>
+    </book>
+</books>

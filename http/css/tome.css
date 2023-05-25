@@ -1,0 +1,23 @@
+body {
+    /* Background image from here: https://www.deviantart.com/emaggz/art/Textures-Old-Paper-270228570 . Permission was given in description. */
+    background-image: url('../img/tome/paper.jpg');
+    /* Then stretch the background. */
+    background-size: 100%;
+}
+
+.tome {
+    text-align: center;
+    /* Always have this div at the centre of the page. */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Then move it back by half of its width and height. */
+    transform: translate(-50%, -50%);
+    /* Then make it 80% of the page width. */
+    width: 80%;
+    /* Then make it 80% of the page height. */
+    height: 80%;
+    /* Then make it scrollable. */
+    overflow: none;
+    font-family: "Georgia", serif;
+}
