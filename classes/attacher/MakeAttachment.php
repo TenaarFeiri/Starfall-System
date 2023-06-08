@@ -18,6 +18,36 @@
             }
         }
 
+        function redeliverExisting($uuid)
+        {
+            // Set the timeout on a row containing $uuid so that the attachment is deleted next time purgeOutdatedAttachments() is run.
+            try
+            {
+                $this->pdo->beginTransaction();
+                $current_time = new \DateTime(); // Get the current time with the DateTime object.
+                $sql = "UPDATE attachments SET timeout = :timeout WHERE uuid = :uuid";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->bindValue(':timeout', $current_time->format(self::DATE_FORMAT), PDO::PARAM_STR);
+                $stmt->bindValue(':uuid', $uuid, PDO::PARAM_STR);
+                $stmt->execute();
+                $this->pdo->commit();
+                return "1|".$uuid;
+            }
+            catch(\PDOException $e)
+            {
+                $this->pdo->rollBack();
+                $this->pdo = null;
+                $stmt = null;
+                throw $e;
+            }
+            finally
+            {
+                $this->pdo = null;
+                $stmt = null;
+            }
+            return false;
+        }
+
         function purgeOutdatedAttachments()
         {
             // This method purges outdated attachments and truncates the table if it's empty after that.
@@ -137,6 +167,10 @@
                 $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 if (count($ids) != count($uuids)) {
                     throw new Exception("Not all UUIDs were inserted successfully.");
+                }
+                // Return the string "null" if there are no IDs.
+                if (count($ids) == 0) {
+                    return "null";
                 }
                 // Finally, return the IDs as a CSV.
                 return implode(",", $ids);

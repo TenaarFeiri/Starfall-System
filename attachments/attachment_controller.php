@@ -1,6 +1,9 @@
 <?php
+    // Then we set up our debug constant.
+    const DEBUG = false; // False for production, true for development.
     // First we create our root path as a constant. We will have no way of knowing the exact path, so use a magic variable.
     const ROOT_PATH = __DIR__ . '/..';
+    $db_path = dirname(dirname(dirname(dirname(ROOT_PATH)))) . '/new_database.php';
     require_once ROOT_PATH . '/classes/autoloader.php';
     require_once ROOT_PATH . '/error_handler/error_handler.php';
     // Enable all PHP errors and warnings.
@@ -8,30 +11,29 @@
     set_error_handler('showErrors'); // Set our custom error handler.
     // Before all else, set us to full plaintext.
     header("Content-Type: text/plain");
-    require_once(ROOT_PATH."/../database.php");
+    require_once($db_path); // Database.
     // Get the headers sent from the Second Life client.
     $headers = apache_request_headers();
-    
-    // Then we set up our debug constant.
-    const DEBUG = true; // False for production, true for development.
 
     // Now, we check the debug condition.
     if(!DEBUG)
     {
         // If we are in debug, then we don't hard check for the headers we want,
         // but while it's false, we do.
-        $arr_key_check = array("X-SecondLife-Shard", "X-SecondLife-Region", "X-SecondLife-Owner-Name", "X-SecondLife-Owner-Key", "X-SecondLife-Object-Key");
+        $arr_key_check = array("User-Agent", "X-SecondLife-Object-Key", "X-SecondLife-Object-Name", "X-SecondLife-Owner-Key");
+        if($headers['X-SecondLife-Region'] != "Starfall Roleplay (130048, 351744)" or $headers['X-SecondLife-Shard'] != "Production")
+        {
+            die("err:You are not allowed to access this page.");
+        }
         foreach($arr_key_check as $key)
         {
             if(!isset($headers[$key]))
             {
-                die("error::You are not allowed to access this page.");
+                die("err:You are not allowed to access this page.");
             }
         }
     }
     
-    // Require our database info file.
-    require_once(ROOT_PATH."/../database.php");
     // Get the post data if we're not in debug mode. Otherwise, use get.
     if(!DEBUG)
     {
@@ -87,6 +89,13 @@
             {
                 echo $result;
             }
+            else
+            {
+                if(DEBUG)
+                {
+                    echo "err:Attachment request failed.";
+                }
+            }
         }
         catch(Exception $e)
         {
@@ -97,13 +106,56 @@
                     $trace_msg .= $item['file'] . " on line " . $item['line'] . PHP_EOL;
                 }
             $error_message = "MakeAttachment failure. Error: " . $e->getMessage() . PHP_EOL . "Trace: " . $trace_msg;
-            $pdo = null; // Kill the object before we throw the error.
+             // Kill the object before we throw the error.
             $attachment = null;
             trigger_error($error_message, E_USER_ERROR);
         }
         finally
         {
             $attachment = null;
+        }
+    }
+    else if($vars['action'] === "redeliver")
+    {
+        if(!isset($vars['uuid']) or empty($vars['uuid']))
+        {
+            $error_message = "redeliver received but no UUID specified.";
+            trigger_error($error_message, E_USER_ERROR);
+        }
+        else
+        {
+            try
+            {
+                // Validate UUID.
+                if(!preg_match("/^([a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){4}[a-fA-F0-9]{8})(,([a-fA-F0-9]{8}(-[a-fA-F0-9]{4}){4}[a-fA-F0-9]{8}))*$/", $vars['uuid']))
+                {
+                    $error_message = "redeliver received but UUID is not a valid CSV." . PHP_EOL . "UUIDs: " . $vars['uuid'];
+                    trigger_error($error_message, E_USER_ERROR);
+                }
+                else
+                {
+                    // No need to explode; redeliver requests are always single UUIDs.
+                    $redelivery = new attacher\MakeAttachment();
+                    echo $redelivery->redeliverExisting($vars['uuid']); // This will throw an error if it doesn't work so we don't need to handle the return value.
+                }
+            }
+            catch(Exception $e)
+            {
+                $trace = $e->getTrace();
+                $trace_msg = "";
+                foreach($trace as $item)
+                {
+                    $trace_msg .= $item['file'] . " on line " . $item['line'] . PHP_EOL;
+                }
+                $error_message = "redeliver failure. Error: " . $e->getMessage() . PHP_EOL . "Trace: " . $trace_msg;
+                 // Kill the object before we throw the error.
+                $redelivery = null;
+                trigger_error($error_message, E_USER_ERROR);
+            }
+            finally
+            {
+                $redelivery = null;
+            }
         }
     }
     else if($vars['action'] === "doAttach")
@@ -119,16 +171,36 @@
         {
             $id = $vars['id'];
         }
-        // Let's make us a new object.
-        $issueAttachment = new attacher\IssueAttachment();
-        $result = $issueAttachment->issueAttachment($id);
-        if($result)
+        try
         {
-            echo $result;
+            // Let's make us a new object.
+            $issueAttachment = new attacher\IssueAttachment();
+            $result = $issueAttachment->issueAttachment($id);
+            if($result)
+            {
+                echo $result;
+            }
+            else
+            {
+                echo "die";
+            }
         }
-        else
+        catch(Exception $e)
         {
-            echo "die";
+            $trace = $e->getTrace();
+            $trace_msg = "";
+            foreach($trace as $item)
+            {
+                $trace_msg .= $item['file'] . " on line " . $item['line'] . PHP_EOL;
+            }
+            $error_message = "IssueAttachment failure. Error: " . $e->getMessage() . PHP_EOL . "Trace: " . $trace_msg;
+             // Kill the object before we throw the error.
+            $issueAttachment = null;
+            trigger_error($error_message, E_USER_ERROR);
+        }
+        finally
+        {
+            $issueAttachment = null;
         }
     }
     else if($vars['action'] === "iAmAttached")
@@ -168,6 +240,7 @@
             if(!$validateAttachment->successfulAttachment($id, $uuid))
             {
                 $error_message = "iAmAttached received but attachment was not successful." . PHP_EOL . "ID: " . $id . PHP_EOL . "UUID: " . $uuid;
+                $validateAttachment = null;
                 trigger_error($error_message, E_USER_ERROR);
             }
         }
@@ -181,6 +254,7 @@
                 $trace_msg .= $item['file'] . " on line " . $item['line'] . PHP_EOL;
             }
             $error_message = "iAmAttached received but a greater error occurred." . PHP_EOL . "ID: " . $id . PHP_EOL . "UUID: " . $uuid . PHP_EOL . $trace_msg;
+            $validateAttachment = null;
             trigger_error($error_message, E_USER_ERROR);
         }
         finally
