@@ -7,7 +7,7 @@ integer retries;
 integer maxRetries = 3; // Number of times to retry the attachment request.
 float timeoutNum = 120.0; // Number of seconds to wait for a response from the server.
 string newOwner; // Necessary because llGetOwner() doesn't work right until the script resets, but we need to use their key before then.
-string url = "https://263a-2a02-25e8-16-f730-9096-6cd0-b8bf-76ce.ngrok-free.app/Starfall_System/"; // URL to the RP tool's attachment controller.
+string url = "https://neckbeardsanon.xen.prgmr.com/Starfall_System/"; // URL to the RP tool's attachment controller.
 string module = "attachments/attachment_controller.php?"; // The module we're using, completing the URL.
 key attachmentRequest; // The key of the request we're sending to the server.
 key successfulAttach;
@@ -90,17 +90,11 @@ default
     }
 
     // Events for experience permissions granted and denied.
-    experience_permissions(key agent, integer perm)
+    experience_permissions(key agent)
     {
-        if(perm == PERMISSION_ATTACH)
+        if(!llGetAttached())
         {
-            // We can attach the object as a temporary attach now.
             llAttachToAvatarTemp(attach_point);
-        }
-        else
-        {
-            // We can't attach the object so we kill it.
-            llDie();
         }
     }
 
@@ -143,6 +137,7 @@ default
             {
                 // If the body is "die", then we missed our window and we should kill the object.
                 // Otherwise, we should attach the RP tool.
+                body = llStringTrim(body, STRING_TRIM);
                 if(body == "die")
                 {
                     llDie(); // Die means we missed our window. Kill object.
@@ -151,7 +146,9 @@ default
                 {
                     // Validate that the UUID received is an agent and that they are present on sim.
                     // We can use agent height to do this! zero_vector means the agent is not there.
-                    if(llGetAgentSize(body) == ZERO_VECTOR)
+                    list data = llParseStringKeepNulls(body, ["|"], []); // Split the body into a list.
+                    // UUID will be index 0, attach point 1, position 2, rotation 3.
+                    if(llGetAgentSize(llList2String(data, 0)) == ZERO_VECTOR)
                     {
                         llDie(); // Kill object.
                     }
@@ -159,55 +156,9 @@ default
                     {
                         // Now we request experience permissions for the UUID.
                         // If we get them, we can attach the RP tool.
-                        newOwner = body;
-                        // Verify that newOwner is a UUID.
-                        if(!llStringTrim(newOwner, STRING_TRIM_HEAD | STRING_TRIM_TAIL)) // Remove leading/trailing whitespace
-                        {
-                            llDie(); // Invalid UUID, kill the script
-                        }
-                        else
-                        {
-                            string uuidPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"; // Regular expression pattern for a Second Life UUID
-                            if(!llStringMatch(newOwner, uuidPattern)) // Check if newOwner matches the UUID pattern
-                            {
-                                llDie(); // Invalid UUID, kill the script
-                            }
-                        }
-                        llRequestExperiencePermissions(newOwner);
+                        newOwner = llList2String(data, 0);
+                        llRequestExperiencePermissions(newOwner, ""); // Unused string var at the end because LL is LL.
                     }
-                }
-            }
-            if(body == "die")
-            {
-                llDie(); // Die means we missed our window. Kill object.
-            }
-            else
-            {
-                // Validate that the UUID received is an agent and that they are present on sim.
-                // We can use agent height to do this! zero_vector means the agent is not there.
-                if(llGetAgentSize(body) == ZERO_VECTOR)
-                {
-                    llDie(); // Kill object.
-                }
-                else
-                {
-                    // Now we request experience permissions for the UUID.
-                    // If we get them, we can attach the RP tool.
-                    newOwner = body;
-                    // Verify that newOwner is a UUID.
-                    if(!llStringTrim(newOwner, STRING_TRIM_HEAD | STRING_TRIM_TAIL)) // Remove leading/trailing whitespace
-                    {
-                        llDie(); // Invalid UUID, kill the script
-                    }
-                    else
-                    {
-                        string uuidPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"; // Regular expression pattern for a Second Life UUID
-                        if(!llStringMatch(newOwner, uuidPattern)) // Check if newOwner matches the UUID pattern
-                        {
-                            llDie(); // Invalid UUID, kill the script
-                        }
-                    }
-                    llRequestExperiencePermissions((key)newOwner, "");
                 }
             }
         }
