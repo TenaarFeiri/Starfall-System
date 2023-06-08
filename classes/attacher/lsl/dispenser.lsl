@@ -3,6 +3,8 @@
     attachment requests!
 */
 
+integer debug = TRUE;
+
 float tick = 5; // How often to check for new agents.
 
 list detectedAgents;
@@ -18,6 +20,7 @@ string url = "https://neckbeardsanon.xen.prgmr.com/Starfall_System/"; // URL to 
 string module = "attachments/attachment_controller.php?"; // The module we're using, completing the URL.
 string hudName = "Starfall HUD";
 string titlerName = "Starfall Titler";
+string testName = "test";
 key sendRequest(string data)
 {
     // Create the HTTP request.
@@ -32,14 +35,22 @@ key sendRequest(string data)
 
 list findAgents()
 {
-    list tmp = llGetAgentList(AGENT_LIST_REGION, []);
+    list tmp;
+    if(debug)
+    {
+        tmp = [(key)llGetOwner()];
+    }
+    else
+    {
+        tmp = llGetAgentList(AGENT_LIST_REGION, []);
+    }
     // Then filter out the agents we've already processed.
     list result = [];
     integer i;
     for (i = 0; i < llGetListLength(tmp); i++)
     {
         key agent = llList2Key(tmp, i);
-        if (llListFindList(processedAgents, [agent]) == -1)
+        if(!isProcessed(agent))
         {
             result += [agent];
         }
@@ -50,14 +61,14 @@ list findAgents()
 list yeetProcessedAgents()
 {
     // Delete processed agents that are no longer on sim.
-    list result = [];
+    list result = processedAgents;
     integer i;
     for (i = 0; i < llGetListLength(processedAgents); i++)
     {
         key agent = (key)llList2String(processedAgents, i);
         if(llGetAgentSize(agent) == ZERO_VECTOR) // Agents no longer on sim return ZERO_VECTOR.
         {
-            result += [agent];
+            result = llDeleteSubList(result, i, i);
         }
     }
     return result;
@@ -100,6 +111,7 @@ rezRpTool(list ids)
     for (i = 0; i < llGetListLength(ids); i++)
     {
         // TODO: Rez objects with their rez params.
+        llRezObject(testName, llGetPos() + <0.0,0.0,1.0>, <0.0,0.0,0.0>, <0.0,0.0,0.0,1.0>, (integer)llList2String(ids, i));
     }
 }
 
@@ -151,7 +163,7 @@ default
         processedAgents = yeetProcessedAgents();
         // Then find new agents.
         detectedAgents = findAgents();
-        // If detectedAgents is not empty...
+        // If detectedAgents is  empty...
         if (llGetListLength(detectedAgents) == 0)
         {
             // Then we don't need to ping the server.
@@ -184,7 +196,6 @@ default
                 list ids = llParseString2List(body, [","], []); // Parse the IDs into our list.
                 // Code to rez here.
                 // For now we just want to see that this is working so output body.
-                llOwnerSay(body); // TODO: Delete this when dev is finished.
                 rezRpTool(ids); // Rez the RP tool modules for attachment.
                 llSetTimerEvent(tick);
             }

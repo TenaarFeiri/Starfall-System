@@ -62,8 +62,16 @@ default
             if(llList2String(tmp, 1) == "attached")
             {
                 // We have a duplicate attachment, so we need to detach the object.
-                llDetachFromAvatar();
+                llRequestPermissions(llGetOwner(), PERMISSION_ATTACH);
             }
+        }
+    }
+
+    run_time_permissions(integer perm)
+    {
+        if(perm & PERMISSION_ATTACH)
+        {
+            llDetachFromAvatar();
         }
     }
 
